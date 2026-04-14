@@ -11,7 +11,8 @@ async function getOrCreateCanvas(client, userId, dmChannelId) {
   const existingId = store.getCanvasId(userId);
   if (existingId) return existingId;
 
-  const result = await client.conversations.canvases.create({
+  // @slack/web-api v6 不含 Canvas API，使用 apiCall 直接呼叫
+  const result = await client.apiCall('conversations.canvases.create', {
     channel_id: dmChannelId,
     document_content: {
       type: 'markdown',
@@ -31,7 +32,7 @@ async function getOrCreateCanvas(client, userId, dmChannelId) {
  * @param {string} markdown
  */
 async function appendToCanvas(client, canvasId, markdown) {
-  await client.canvases.edit({
+  await client.apiCall('canvases.edit', {
     canvas_id: canvasId,
     changes: [
       {

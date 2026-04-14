@@ -1,0 +1,21 @@
+{
+  "name": "time-flies-bot",
+  "version": "1.0.0",
+  "description": "Slack Bot for tracking work hours",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.17.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  }
+}

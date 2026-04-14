@@ -7,9 +7,10 @@ const PROJECT_OPTIONS = Object.entries(PROJECTS).map(([code, name]) => ({
 }));
 
 module.exports = function registerLog(app) {
-  app.command('/log', async ({ command, ack, client }) => {
+  app.command('/log', async ({ command, ack, client, respond }) => {
     await ack();
     await openLogModal(client, command.trigger_id, command.channel_id);
+    await respond({ response_type: 'ephemeral', text: '請在彈出的視窗填寫工時。' });
   });
 
   app.view('log_modal', async ({ view, ack, body, client }) => {
@@ -63,8 +64,20 @@ module.exports = function registerLog(app) {
     await openLogModal(client, body.trigger_id, action.value);
   });
 
-  app.action('log_done', async ({ ack }) => {
+  app.action('log_done', async ({ body, ack, client }) => {
     await ack();
+    // 移除按鈕，只留確認文字
+    await client.chat.update({
+      channel: body.channel.id,
+      ts: body.message.ts,
+      blocks: [
+        {
+          type: 'section',
+          text: body.message.blocks[0].text,
+        },
+      ],
+      text: body.message.blocks[0].text.text,
+    });
   });
 };
 

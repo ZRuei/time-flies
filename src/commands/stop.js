@@ -2,15 +2,15 @@ const { PROJECTS } = require('../config');
 const store = require('../store');
 
 module.exports = function registerStop(app) {
-  app.command('/stop', async ({ command, ack, client }) => {
+  app.command('/stop', async ({ command, ack, client, respond }) => {
     await ack();
 
     const userId = command.user_id;
     const timer = store.getTimer(userId);
 
     if (!timer) {
-      await client.chat.postMessage({
-        channel: command.channel_id,
+      await respond({
+        response_type: 'ephemeral',
         text: '目前沒有進行中的計時，請先使用 /start。',
       });
       return;
@@ -28,9 +28,14 @@ module.exports = function registerStop(app) {
     });
     store.clearTimer(userId);
 
-    await client.chat.postMessage({
-      channel: timer.dmChannelId,
-      text: `⏹ 已記錄：[${PROJECTS[timer.project]}] ${timer.content} — ${hours} 小時`,
-    });
+    const text = `⏹ 已記錄：[${PROJECTS[timer.project]}] ${timer.content} — ${hours} 小時`;
+
+    // 在指令頻道給予即時回饋
+    await respond({ response_type: 'ephemeral', text });
+
+    // 同時在 Bot DM 留下紀錄（若不同頻道）
+    if (timer.dmChannelId !== command.channel_id) {
+      await client.chat.postMessage({ channel: timer.dmChannelId, text });
+    }
   });
 };

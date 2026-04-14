@@ -74,17 +74,23 @@ module.exports = function registerSummary(app) {
     const dmChannelId = dmResult.channel.id;
     store.setDmChannelId(userId, dmChannelId);
 
-    const markdown = formatEntries(entries);
-    const canvasId = await getOrCreateCanvas(client, userId, dmChannelId);
-    await appendToCanvas(client, canvasId, markdown);
-
     const label =
       range.start === range.end ? range.start : `${range.start} ～ ${range.end}`;
 
-    await client.chat.postMessage({
-      channel: dmChannelId,
-      text: `已將 ${label} 紀錄存入 Canvas ✓`,
-    });
+    try {
+      const markdown = formatEntries(entries);
+      const canvasId = await getOrCreateCanvas(client, userId, dmChannelId);
+      await appendToCanvas(client, canvasId, markdown);
+      await client.chat.postMessage({
+        channel: dmChannelId,
+        text: `已將 ${label} 紀錄存入 Canvas ✓`,
+      });
+    } catch (err) {
+      await client.chat.postMessage({
+        channel: command.channel_id,
+        text: `寫入 Canvas 失敗：${err.message}\n（請確認 Bot 已取得 \`canvases:write\` 權限）`,
+      });
+    }
   });
 };
 

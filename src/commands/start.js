@@ -33,6 +33,7 @@ module.exports = function registerStart(app) {
     const userId = body.user.id;
     const project = view.state.values.project_block.project_select.selected_option.value;
     const content = view.state.values.content_block.content_input.value;
+    const originalChannelId = view.private_metadata;
 
     const dmResult = await client.conversations.open({ users: userId });
     const dmChannelId = dmResult.channel.id;
@@ -40,10 +41,14 @@ module.exports = function registerStart(app) {
 
     store.startTimer(userId, project, content, dmChannelId);
 
-    await client.chat.postMessage({
-      channel: dmChannelId,
-      text: `▶ 已開始計時：[${PROJECTS[project]}] ${content}`,
-    });
+    const text = `▶ 已開始計時：[${PROJECTS[project]}] ${content}`;
+
+    // 在指令頻道給予即時回饋（ephemeral）
+    if (originalChannelId && originalChannelId !== dmChannelId) {
+      await client.chat.postEphemeral({ channel: originalChannelId, user: userId, text });
+    }
+
+    await client.chat.postMessage({ channel: dmChannelId, text });
   });
 };
 

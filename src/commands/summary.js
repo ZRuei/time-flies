@@ -1,6 +1,6 @@
 const store = require('../store');
 const { formatEntries } = require('../formatter');
-const { getOrCreateCanvas, appendToCanvas } = require('../canvas');
+const { getOrCreateCanvas, appendToCanvas, getCanvasPermalink } = require('../canvas');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -81,9 +81,11 @@ module.exports = function registerSummary(app) {
       const markdown = formatEntries(entries);
       const canvasId = await getOrCreateCanvas(client, userId, dmChannelId);
       await appendToCanvas(client, canvasId, markdown);
+      const permalink = await getCanvasPermalink(client, canvasId);
+      const linkText = permalink ? `\n<${permalink}|開啟畫板>` : '';
       await client.chat.postMessage({
         channel: dmChannelId,
-        text: `已將 ${label} 紀錄存入 Canvas ✓`,
+        text: `已將 ${label} 紀錄存入 Canvas ✓${linkText}`,
       });
     } catch (err) {
       await client.chat.postMessage({

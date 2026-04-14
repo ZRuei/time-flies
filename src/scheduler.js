@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const { WebClient } = require('@slack/web-api');
 const store = require('./store');
 const { formatEntries } = require('./formatter');
-const { getOrCreateCanvas, appendToCanvas } = require('./canvas');
+const { getOrCreateCanvas, appendToCanvas, getCanvasPermalink } = require('./canvas');
 
 async function runScheduledSummary() {
   const client = new WebClient(process.env.SLACK_BOT_TOKEN);
@@ -24,9 +24,11 @@ async function runScheduledSummary() {
       const markdown = formatEntries(entries);
       const canvasId = await getOrCreateCanvas(client, userId, dmChannelId);
       await appendToCanvas(client, canvasId, markdown);
+      const permalink = await getCanvasPermalink(client, canvasId);
+      const linkText = permalink ? `\n<${permalink}|開啟畫板>` : '';
       await client.chat.postMessage({
         channel: dmChannelId,
-        text: `已自動將今日（${today}）工時紀錄存入 Canvas ✓`,
+        text: `已自動將今日（${today}）工時紀錄存入 Canvas ✓${linkText}`,
       });
     }
   }

@@ -46,4 +46,19 @@ async function appendToCanvas(client, canvasId, markdown) {
   });
 }
 
-module.exports = { getOrCreateCanvas, appendToCanvas };
+/**
+ * 取得 Canvas 的 permalink。
+ * @param {import('@slack/web-api').WebClient} client
+ * @param {string} canvasId
+ * @returns {Promise<string|null>}
+ */
+async function getCanvasPermalink(client, canvasId) {
+  try {
+    const info = await client.apiCall('files.info', { file: canvasId });
+    return info.file?.permalink || null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { getOrCreateCanvas, appendToCanvas, getCanvasPermalink };

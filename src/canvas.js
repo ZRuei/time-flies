@@ -12,14 +12,15 @@ async function getOrCreateCanvas(client, userId, dmChannelId) {
   if (existingId) return existingId;
 
   // @slack/web-api v6 不含 Canvas API，使用 apiCall 直接呼叫
-  // 使用 canvases.create（standalone）取代 conversations.canvases.create，相容性更佳
-  const result = await client.apiCall('canvases.create', {
+  const result = await client.apiCall('conversations.canvases.create', {
+    channel_id: dmChannelId,
     document_content: {
       type: 'markdown',
       markdown: '# 我愛工作\n\n',
     },
   });
 
+  console.log('[canvas] conversations.canvases.create result:', JSON.stringify(result));
   const canvasId = result.canvas_id;
   store.setCanvasId(userId, canvasId);
   return canvasId;

@@ -1,62 +1,58 @@
-# Canvas Management Design
+# Canvas 管理設計
 
-## Problem
+## 問題描述
 
-Bot-created Slack canvases cannot be deleted from the Slack UI (no delete option in context menu). Users ended up with multiple orphaned "我愛工作" canvases, and the append-only approach caused stale or incorrectly formatted content after multiple `/summary` calls.
+Bot 建立的 Slack Canvas 在 Slack UI 中無法刪除（右鍵選單沒有刪除選項）。使用者累積了多份孤立的「我愛工作」畫板，且 append-only 的做法導致多次執行 `/summary` 後出現格式錯誤或過時資料。
 
-## Goals
+## 目標
 
-1. One canvas per user — no duplicates accumulate
-2. `/summary` always reflects the current state of the store (correct format, no stale data)
-3. `/resetcanvas` provides a complete fresh start: clears both canvas content and store data
-4. The "can't delete" problem is eliminated by design — users never need to delete a canvas
+1. 每位使用者只有一份 canvas，不累積重複檔案
+2. `/summary` 永遠反映 store 的當前狀態（格式正確、無過時資料）
+3. `/resetcanvas` 提供完整的全新開始：同時清空 canvas 內容與 store 資料
+4. 「刪不掉」的問題從設計層面消除——使用者不需要刪除 canvas
 
-## Non-Goals
+## 不在範圍內
 
-- Per-date-range upsert (too complex given Slack Canvas API limitations)
-- Admin tools for viewing or exporting user data (separate concern)
-- Canvas sharing or multi-user collaboration
+- 按日期區間 upsert（Slack Canvas API 限制，實作太複雜）
+- 查看或匯出使用者資料的管理工具（另行討論）
+- Canvas 分享或多人協作
 
-## Design
+## 設計
 
-### Canvas Uniqueness
+### Canvas 唯一性
 
-Each user has exactly one canvas. The `canvasId` is persisted in `data/logs.json` (on Railway Volume). `getOrCreateCanvas` checks for an existing ID before calling `conversations.canvases.create`. With persistent storage and no delete-on-reset, the same canvas is reused indefinitely.
+每位使用者只有一份 canvas。`canvasId` 持久化儲存於 `data/logs.json`（掛載在 Railway Volume）。`getOrCreateCanvas` 在呼叫 `conversations.canvases.create` 前會先檢查是否已有 ID。同一份 canvas 無限期重複使用。
 
-### `/summary` — Full Rewrite
+### `/summary` — 完整重寫
 
-Replace the append-only approach with a full canvas rewrite on every `/summary` call:
+將 append-only 改為每次完整覆寫：
 
-1. Fetch **all entries** for the user from the store (ignore the requested date range for canvas content — show complete history)
-2. Format using `formatEntries`
-3. Call `canvases.edit` with a `replace` operation targeting the full document content
+1. 從 store 撈出**該使用者所有工時記錄**
+2. 用 `formatEntries` 格式化
+3. 呼叫 `canvases.edit`，以 `replace` 操作覆蓋整份 canvas 內容
 
-The canvas always equals the store's current state. Running `/summary` twice produces the same result (idempotent).
+Canvas 永遠等於 store 的當前快照。執行兩次 `/summary` 結果相同（冪等）。
 
-### `/resetcanvas` — Complete Fresh Start
+### `/resetcanvas` — 完整清除
 
-1. **Clear canvas content** — call `canvases.edit` to replace canvas body with empty content (keep title "我愛工作", reuse same `canvasId`)
-2. **Delete store data** — remove all work log entries for the user from `data/logs.json`
+1. **清空 canvas 內容** — 呼叫 `canvases.edit` 將 canvas 主體替換為空內容（保留標題「我愛工作」，`canvasId` 不變）
+2. **刪除 store 資料** — 從 `data/logs.json` 移除該使用者所有工時記錄
 
-The `canvasId` is NOT cleared — the same canvas continues to be used after reset. The user starts logging from scratch; the next `/summary` will write only new data.
+`canvasId` **不清除**——重置後繼續使用同一份 canvas。使用者從零開始記錄，下次 `/summary` 只會寫入新資料。
 
-**Expected user experience:** after `/resetcanvas`, both the canvas and the log history are empty. No old data reappears on the next `/summary`.
+**使用者預期體驗：** 執行 `/resetcanvas` 後，canvas 和工時記錄都清空。下次 `/summary` 不會出現以為已刪除的舊資料。
 
-### Data Flow
+### 資料流
 
 ```
-/log → store.addEntry()
-/summary → store.getAllEntries(userId) → formatEntries() → canvases.edit(replace)
-/resetcanvas → canvases.edit(clear content) + store.deleteAllEntries(userId)
+/log       → store.addEntry()
+/summary   → store.getAllEntries(userId) → formatEntries() → canvases.edit(replace)
+/resetcanvas → canvases.edit(清空內容) + store.deleteAllEntries(userId)
 ```
 
-## Implementation Notes
+## 實作重點
 
-- `store.js` needs a new `deleteAllEntries(userId)` function
-- `canvas.js` `appendToCanvas` → replaced by `rewriteCanvas(client, canvasId, markdown)`
-- `canvases.edit` with `replace` operation on the root section clears and rewrites all content
-- `/resetcanvas` must be registered as a Slack slash command in the App manifest
-
-## Open Questions
-
-- None — design is fully resolved.
+- `store.js` 新增 `deleteAllEntries(userId)` 函數
+- `canvas.js` 的 `appendToCanvas` 改為 `rewriteCanvas(client, canvasId, markdown)`
+- `canvases.edit` 使用 `replace` 操作覆寫根節點內容
+- `/resetcanvas` 需在 Slack App 後台註冊為 Slash Command

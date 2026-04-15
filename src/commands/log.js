@@ -62,6 +62,17 @@ module.exports = function registerLog(app) {
   app.action('log_add_another', async ({ body, ack, client, action }) => {
     await ack();
     await openLogModal(client, body.trigger_id, action.value);
+    await client.chat.update({
+      channel: body.channel.id,
+      ts: body.message.ts,
+      blocks: [
+        {
+          type: 'section',
+          text: body.message.blocks[0].text,
+        },
+      ],
+      text: body.message.blocks[0].text.text,
+    });
   });
 
   app.action('log_done', async ({ body, ack, client }) => {

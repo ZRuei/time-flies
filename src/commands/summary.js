@@ -89,7 +89,7 @@ module.exports = function registerSummary(app) {
       });
     } catch (err) {
       await client.chat.postMessage({
-        channel: command.channel_id,
+        channel: dmChannelId,
         text: `寫入 Canvas 失敗：${err.message}\n（請確認 Bot 已取得 \`canvases:write\` 權限）`,
       });
     }

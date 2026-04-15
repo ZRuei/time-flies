@@ -32,7 +32,7 @@ async function getOrCreateCanvas(client, userId, dmChannelId) {
  * @param {string} markdown
  */
 async function appendToCanvas(client, canvasId, markdown) {
-  await client.apiCall('canvases.edit', {
+  const result = await client.apiCall('canvases.edit', {
     canvas_id: canvasId,
     changes: [
       {
@@ -44,6 +44,7 @@ async function appendToCanvas(client, canvasId, markdown) {
       },
     ],
   });
+  console.log('[canvas] canvases.edit result:', JSON.stringify(result));
 }
 
 /**

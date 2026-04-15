@@ -7,88 +7,109 @@ const PROJECT_OPTIONS = Object.entries(PROJECTS).map(([code, name]) => ({
 }));
 
 module.exports = function registerLog(app) {
-  app.command('/log', async ({ command, ack, client, respond }) => {
+  app.command('/log', async ({ command, ack, client }) => {
     await ack();
     await openLogModal(client, command.trigger_id, command.channel_id);
-    await respond({ response_type: 'ephemeral', text: '請在彈出的視窗填寫工時。' });
   });
 
   app.view('log_modal', async ({ view, ack, body, client }) => {
+    const hours = parseFloat(view.state.values.hours_block.hours_input.value);
+
+    if (isNaN(hours) || hours <= 0) {
+      await ack({ response_action: 'errors', errors: { hours_block: '時數必須大於 0' } });
+      return;
+    }
+
     await ack();
 
     const userId = body.user.id;
     const project = view.state.values.project_block.project_select.selected_option.value;
     const content = view.state.values.content_block.content_input.value;
-    const hours = parseFloat(view.state.values.hours_block.hours_input.value);
     const channelId = view.private_metadata;
 
-    const dmResult = await client.conversations.open({ users: userId });
-    const dmChannelId = dmResult.channel.id;
-    store.setDmChannelId(userId, dmChannelId);
+    try {
+      const dmResult = await client.conversations.open({ users: userId });
+      const dmChannelId = dmResult.channel.id;
+      store.setDmChannelId(userId, dmChannelId);
 
-    const today = new Date().toISOString().slice(0, 10);
-    store.addEntry(userId, today, { project, content, hours });
+      const today = new Date().toISOString().slice(0, 10);
 
-    await client.chat.postMessage({
-      channel: dmChannelId,
-      blocks: [
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `✅ 已記錄：[${PROJECTS[project]}] ${content} — ${hours} 小時`,
+      await client.chat.postMessage({
+        channel: dmChannelId,
+        text: `✅ 已記錄：[${PROJECTS[project]}] ${content} — ${hours} 小時`,
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `✅ 已記錄：[${PROJECTS[project]}] ${content} — ${hours} 小時`,
+            },
           },
-        },
-        {
-          type: 'actions',
-          elements: [
-            {
-              type: 'button',
-              action_id: 'log_add_another',
-              text: { type: 'plain_text', text: '再新增一筆' },
-              value: channelId,
-            },
-            {
-              type: 'button',
-              action_id: 'log_done',
-              text: { type: 'plain_text', text: '完成' },
-            },
-          ],
-        },
-      ],
-    });
+          {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                action_id: 'log_add_another',
+                text: { type: 'plain_text', text: '再新增一筆' },
+                value: channelId,
+              },
+              {
+                type: 'button',
+                action_id: 'log_done',
+                text: { type: 'plain_text', text: '完成' },
+              },
+            ],
+          },
+        ],
+      });
+      store.addEntry(userId, today, { project, content, hours });
+    } catch (err) {
+      console.error('[log_modal] error:', err);
+      try {
+        const dmResult = await client.conversations.open({ users: userId });
+        await client.chat.postMessage({
+          channel: dmResult.channel.id,
+          text: '記錄工時時發生錯誤，請稍後再試。',
+        });
+      } catch (_) { /* ignore secondary error */ }
+    }
   });
 
   app.action('log_add_another', async ({ body, ack, client, action }) => {
     await ack();
-    await openLogModal(client, body.trigger_id, action.value);
-    await client.chat.update({
-      channel: body.channel.id,
-      ts: body.message.ts,
-      blocks: [
-        {
-          type: 'section',
-          text: body.message.blocks[0].text,
-        },
-      ],
-      text: body.message.blocks[0].text.text,
-    });
+    try {
+      await openLogModal(client, body.trigger_id, action.value);
+      const sectionText = body.message?.blocks?.[0]?.text;
+      if (sectionText) {
+        await client.chat.update({
+          channel: body.channel.id,
+          ts: body.message.ts,
+          blocks: [{ type: 'section', text: sectionText }],
+          text: sectionText.text,
+        });
+      }
+    } catch (err) {
+      console.error('[log_add_another] error:', err);
+    }
   });
 
   app.action('log_done', async ({ body, ack, client }) => {
     await ack();
     // 移除按鈕，只留確認文字
-    await client.chat.update({
-      channel: body.channel.id,
-      ts: body.message.ts,
-      blocks: [
-        {
-          type: 'section',
-          text: body.message.blocks[0].text,
-        },
-      ],
-      text: body.message.blocks[0].text.text,
-    });
+    try {
+      const sectionText = body.message?.blocks?.[0]?.text;
+      if (sectionText) {
+        await client.chat.update({
+          channel: body.channel.id,
+          ts: body.message.ts,
+          blocks: [{ type: 'section', text: sectionText }],
+          text: sectionText.text,
+        });
+      }
+    } catch (err) {
+      console.error('[log_done] error:', err);
+    }
   });
 };
 

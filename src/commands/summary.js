@@ -1,6 +1,6 @@
 const store = require('../store');
 const { formatEntries } = require('../formatter');
-const { getOrCreateCanvas, appendToCanvas, getCanvasPermalink } = require('../canvas');
+const { rewriteCanvas, getCanvasPermalink } = require('../canvas');
 const { getTodayTaipei } = require('../date-helper');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -61,12 +61,13 @@ module.exports = function registerSummary(app) {
       return;
     }
 
-    const entries = store.getEntries(userId, range.start, range.end);
+    // 方案 A：canvas 永遠等於全量 store，參數僅用於訊息標籤
+    const allEntries = store.getAllEntries(userId);
 
-    if (Object.keys(entries).length === 0) {
+    if (Object.keys(allEntries).length === 0) {
       await client.chat.postMessage({
         channel: command.channel_id,
-        text: '該區間沒有工時紀錄。',
+        text: '尚無任何工時紀錄。',
       });
       return;
     }
@@ -79,19 +80,19 @@ module.exports = function registerSummary(app) {
       range.start === range.end ? range.start : `${range.start} ～ ${range.end}`;
 
     try {
-      const markdown = formatEntries(entries);
-      const canvasId = await getOrCreateCanvas(client, userId, dmChannelId);
-      await appendToCanvas(client, canvasId, markdown);
-      const permalink = await getCanvasPermalink(client, canvasId);
+      const markdown = formatEntries(allEntries);
+      const newCanvasId = await rewriteCanvas(client, userId, dmChannelId, markdown);
+      const permalink = await getCanvasPermalink(client, newCanvasId);
       const linkText = permalink ? `\n<${permalink}|開啟畫板>` : '';
       await client.chat.postMessage({
         channel: dmChannelId,
-        text: `已將 ${label} 紀錄存入 Canvas ✓${linkText}`,
+        text: `Canvas 已同步所有工時紀錄 ✓（你查詢的區間：${label}）${linkText}`,
       });
     } catch (err) {
+      console.error('[summary] rewriteCanvas failed:', err);
       await client.chat.postMessage({
         channel: dmChannelId,
-        text: `寫入 Canvas 失敗：${err.message}\n（請確認 Bot 已取得 \`canvases:write\` 權限）`,
+        text: `寫入 Canvas 失敗：${err.data?.error || err.message}`,
       });
     }
   });

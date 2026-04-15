@@ -6,6 +6,7 @@ const registerLog = require('./commands/log');
 const registerSummary = require('./commands/summary');
 const { setupScheduler } = require('./scheduler');
 const store = require('./store');
+const { deleteCanvas } = require('./canvas');
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -19,16 +20,30 @@ registerStop(app);
 registerLog(app);
 registerSummary(app);
 
-// 重置 Canvas ID（用於修復無效的 canvasId）
+// 重置：刪除 canvas、清空 canvasId、刪除所有工時紀錄
 app.command('/resetcanvas', async ({ command, ack, client }) => {
   await ack();
   const userId = command.user_id;
-  store.setCanvasId(userId, null);
-  const dmResult = await client.conversations.open({ users: userId });
-  await client.chat.postMessage({
-    channel: dmResult.channel.id,
-    text: 'Canvas ID 已清除，下次 `/summary` 會重新建立畫板。',
-  });
+
+  try {
+    await deleteCanvas(client, userId);
+    store.deleteAllEntries(userId);
+
+    const dmResult = await client.conversations.open({ users: userId });
+    await client.chat.postMessage({
+      channel: dmResult.channel.id,
+      text: 'Canvas 與工時紀錄已全部清除。下次 `/log` 後執行 `/summary` 會重建畫板。',
+    });
+  } catch (err) {
+    console.error('[resetcanvas] error:', err);
+    try {
+      const dmResult = await client.conversations.open({ users: userId });
+      await client.chat.postMessage({
+        channel: dmResult.channel.id,
+        text: `重置過程發生錯誤：${err.data?.error || err.message}`,
+      });
+    } catch (_) { /* ignore secondary error */ }
+  }
 });
 
 (async () => {

@@ -55,10 +55,15 @@ async function appendToCanvas(client, canvasId, markdown) {
 async function getCanvasPermalink(client, canvasId) {
   try {
     const info = await client.apiCall('files.info', { file: canvasId });
-    return info.file?.permalink || null;
-  } catch {
-    return null;
-  }
+    if (info.file?.permalink) return info.file.permalink;
+  } catch {}
+
+  try {
+    const auth = await client.apiCall('auth.test', {});
+    if (auth.url) return `${auth.url}docs/${canvasId}`;
+  } catch {}
+
+  return null;
 }
 
 module.exports = { getOrCreateCanvas, appendToCanvas, getCanvasPermalink };

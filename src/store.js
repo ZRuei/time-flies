@@ -51,6 +51,18 @@ function getEntries(userId, startDate, endDate) {
   return result;
 }
 
+function getAllEntries(userId) {
+  const logs = readLogs();
+  return logs[userId]?.entries || {};
+}
+
+function deleteAllEntries(userId) {
+  const logs = readLogs();
+  if (!logs[userId]) return;
+  logs[userId].entries = {};
+  writeLogs(logs);
+}
+
 function setCanvasId(userId, canvasId) {
   const logs = readLogs();
   if (!logs[userId]) logs[userId] = { _meta: {}, entries: {} };
@@ -82,27 +94,10 @@ function getAllUserIds() {
   return Object.keys(logs);
 }
 
-function markEntriesWritten(userId, date) {
-  const logs = readLogs();
-  const entries = logs[userId]?.entries?.[date];
-  if (!entries) return;
-  for (const entry of entries) {
-    entry.writtenToCanvas = true;
-  }
-  writeLogs(logs);
-}
-
-function getUnwrittenEntries(userId, date) {
-  const logs = readLogs();
-  const entries = logs[userId]?.entries?.[date] || [];
-  return entries.filter(e => !e.writtenToCanvas);
-}
-
 module.exports = {
   startTimer, getTimer, clearTimer,
-  addEntry, getEntries,
+  addEntry, getEntries, getAllEntries, deleteAllEntries,
   setCanvasId, getCanvasId,
   setDmChannelId, getDmChannelId,
   getAllUserIds,
-  markEntriesWritten, getUnwrittenEntries,
 };

@@ -54,6 +54,32 @@ describe('entries', () => {
     const result = store.getEntries('U999', '2026-04-14', '2026-04-14');
     expect(result).toEqual({});
   });
+
+  test('getAllEntries returns all dates for user', () => {
+    store.addEntry('U001', '2026-04-13', { project: 'RC', content: 'A', hours: 1 });
+    store.addEntry('U001', '2026-04-15', { project: 'AS', content: 'B', hours: 2 });
+    const result = store.getAllEntries('U001');
+    expect(Object.keys(result).sort()).toEqual(['2026-04-13', '2026-04-15']);
+    expect(result['2026-04-13'][0].content).toBe('A');
+  });
+
+  test('getAllEntries returns empty object when no data', () => {
+    expect(store.getAllEntries('U999')).toEqual({});
+  });
+
+  test('deleteAllEntries removes entries but keeps metadata', () => {
+    store.addEntry('U001', '2026-04-14', { project: 'RC', content: 'X', hours: 1 });
+    store.setCanvasId('U001', 'F123');
+    store.setDmChannelId('U001', 'D123');
+    store.deleteAllEntries('U001');
+    expect(store.getAllEntries('U001')).toEqual({});
+    expect(store.getCanvasId('U001')).toBe('F123');
+    expect(store.getDmChannelId('U001')).toBe('D123');
+  });
+
+  test('deleteAllEntries is safe for non-existent user', () => {
+    expect(() => store.deleteAllEntries('U999')).not.toThrow();
+  });
 });
 
 describe('metadata', () => {

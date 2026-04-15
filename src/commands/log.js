@@ -1,5 +1,6 @@
 const { PROJECTS } = require('../config');
 const store = require('../store');
+const { getTodayTaipei } = require('../date-helper');
 
 const PROJECT_OPTIONS = Object.entries(PROJECTS).map(([code, name]) => ({
   text: { type: 'plain_text', text: name },
@@ -32,7 +33,8 @@ module.exports = function registerLog(app) {
       const dmChannelId = dmResult.channel.id;
       store.setDmChannelId(userId, dmChannelId);
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayTaipei();
+      store.addEntry(userId, today, { project, content, hours });
 
       await client.chat.postMessage({
         channel: dmChannelId,
@@ -63,7 +65,6 @@ module.exports = function registerLog(app) {
           },
         ],
       });
-      store.addEntry(userId, today, { project, content, hours });
     } catch (err) {
       console.error('[log_modal] error:', err);
       try {

@@ -1,5 +1,6 @@
 const { PROJECTS } = require('../config');
 const store = require('../store');
+const { getTodayTaipei } = require('../date-helper');
 
 module.exports = function registerStop(app) {
   app.command('/stop', async ({ command, ack, client, respond }) => {
@@ -20,7 +21,7 @@ module.exports = function registerStop(app) {
     // 四捨五入至 0.5 小時
     const hours = Math.round((elapsedMs / 3_600_000) * 2) / 2;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayTaipei();
     store.addEntry(userId, today, {
       project: timer.project,
       content: timer.content,

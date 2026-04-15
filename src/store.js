@@ -82,10 +82,27 @@ function getAllUserIds() {
   return Object.keys(logs);
 }
 
+function markEntriesWritten(userId, date) {
+  const logs = readLogs();
+  const entries = logs[userId]?.entries?.[date];
+  if (!entries) return;
+  for (const entry of entries) {
+    entry.writtenToCanvas = true;
+  }
+  writeLogs(logs);
+}
+
+function getUnwrittenEntries(userId, date) {
+  const logs = readLogs();
+  const entries = logs[userId]?.entries?.[date] || [];
+  return entries.filter(e => !e.writtenToCanvas);
+}
+
 module.exports = {
   startTimer, getTimer, clearTimer,
   addEntry, getEntries,
   setCanvasId, getCanvasId,
   setDmChannelId, getDmChannelId,
   getAllUserIds,
+  markEntriesWritten, getUnwrittenEntries,
 };

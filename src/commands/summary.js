@@ -1,6 +1,7 @@
 const store = require('../store');
 const { formatEntries } = require('../formatter');
 const { getOrCreateCanvas, appendToCanvas, getCanvasPermalink } = require('../canvas');
+const { getTodayTaipei } = require('../date-helper');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -49,7 +50,7 @@ module.exports = function registerSummary(app) {
     await ack();
 
     const userId = command.user_id;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayTaipei();
     const range = parseDateRange(command.text || '', today);
 
     if (!range) {

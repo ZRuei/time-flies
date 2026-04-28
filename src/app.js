@@ -1,5 +1,19 @@
 require('dotenv').config();
 const { App } = require('@slack/bolt');
+
+// Socket Mode 偶爾會在 connecting 狀態收到 server explicit disconnect，
+// 底層 finity 狀態機會 throw，未捕獲就會打死整個 process。
+// 這裡攔下例外讓 Bolt 自己重連，避免整個 process 被打死。
+process.on('uncaughtException', (err) => {
+  if (err && /Unhandled event .* in state/.test(err.message || '')) {
+    console.warn('[socket-mode] swallowed finity unhandled-event:', err.message);
+    return;
+  }
+  console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
 const registerStart = require('./commands/start');
 const registerStop = require('./commands/stop');
 const registerLog = require('./commands/log');
